@@ -3,3 +3,6 @@
 letsencryptlambda
 main
 *.zip
+*.pem
+*.crt
+*.key

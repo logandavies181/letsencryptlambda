@@ -84,8 +84,14 @@ func LambdaHandler() {
 
 	config := lego.NewConfig(&myUser)
 
-	// This CA URL is configured for a local dev instance of Boulder running in Docker in a VM.
-	config.CADirURL = "https://acme-staging-v02.api.letsencrypt.org/directory"
+	// CADirURL is which CA to try the ACME protocol to
+	// Values from: https://github.com/go-acme/lego/blob/master/lego/client_config.go
+	// Let's Encrypt Staging: "https://acme-staging-v02.api.letsencrypt.org/directory"
+	// Let's Encrypt Prod: "https://acme-staging-v02.api.letsencrypt.org/directory"
+	caDirURL := os.Getenv("CA_DIR_URL")
+	if caDirURL == "" {
+		caDirURL = "https://acme-staging-v02.api.letsencrypt.org/directory"
+	}
 	config.Certificate.KeyType = certcrypto.RSA2048
 
 	// A client facilitates communication with the CA server.

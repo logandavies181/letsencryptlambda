@@ -96,11 +96,13 @@ resource "aws_lambda_function" "letsencryptlambda" {
   handler          = "main"
   source_code_hash = filebase64sha256("lambda_function.zip")
   runtime          = "go1.x"
+  timeout          = 300
 
   environment {
     variables = {
       BUCKET_NAME = var.bucket_name
       DOMAIN      = var.domain
+      CA_DIR_URL  = var.ca_dir_url
     }
   }
 
