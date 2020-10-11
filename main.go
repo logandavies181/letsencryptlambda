@@ -1,26 +1,28 @@
 package main
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	"github.com/go-acme/lego/v4/certcrypto"
 	"github.com/go-acme/lego/v4/certificate"
-	"github.com/go-acme/lego/v4/providers/dns/route53"
-
-	//"github.com/go-acme/lego/v4/challenge/http01"
-	//"github.com/go-acme/lego/v4/challenge/tlsalpn01"
 	"github.com/go-acme/lego/v4/lego"
+	"github.com/go-acme/lego/v4/providers/dns/route53"
 	"github.com/go-acme/lego/v4/registration"
+
+	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-// You'll need a user or account type that implements acme.User
+// Implement the acme.User interface. Copied from https://go-acme.github.io/lego/usage/library/
 type MyUser struct {
 	Email        string
 	Registration *registration.Resource
@@ -38,6 +40,35 @@ func (u *MyUser) GetPrivateKey() crypto.PrivateKey {
 }
 
 func main() {
+	lambda.Start(LambdaHandler)
+}
+
+func uploadToS3(payload []byte, key string) {
+	session, err := session.NewSession()
+	if err != nil {
+		log.Fatal(err)
+	}
+	s3Session := s3.New(session)
+
+	body := bytes.NewReader(payload)
+
+	bucket := os.Getenv("BUCKET_NAME")
+	req, _ := s3Session.PutObjectRequest(&s3.PutObjectInput{
+		Bucket: &bucket,
+		Key:    &key,
+		Body:   body,
+	})
+
+	err = req.Send()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Uploaded %v successfully", key)
+}
+
+// LambdaHandler gets a cert using route53 dns challenge and upload to s3
+func LambdaHandler() {
 
 	// Create a user. New accounts need an email and private key to start.
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -45,8 +76,9 @@ func main() {
 		log.Fatal(err)
 	}
 
+	email := os.Getenv("EMAIL")
 	myUser := MyUser{
-		Email: "logan.davies181@gmail.com",
+		Email: email,
 		key:   privateKey,
 	}
 
@@ -62,24 +94,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// We specify an HTTP port of 5002 and an TLS port of 5001 on all interfaces
-	// because we aren't running as root and can't bind a listener to port 80 and 443
-	// (used later when we attempt to pass challenges). Keep in mind that you still
-	// need to proxy challenge traffic to port 5002 and 5001.
-
-	/*
-	err = client.Challenge.SetHTTP01Provider(http01.NewProviderServer("", "80"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = client.Challenge.SetTLSALPN01Provider(tlsalpn01.NewProviderServer("", "443"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	*/
+	// Set up route53 dns-01 challenge provider
 	route53Config := route53.NewDefaultConfig()
 	route53Config.PropagationTimeout = time.Second * 300
-	route53Provider, err := route53.NewDNSProviderConfig(route53Config) 
+	route53Provider, err := route53.NewDNSProviderConfig(route53Config)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -95,8 +113,9 @@ func main() {
 	}
 	myUser.Registration = reg
 
+	domain := os.Getenv("DOMAIN")
 	request := certificate.ObtainRequest{
-		Domains: []string{"gologie.com"},
+		Domains: []string{domain},
 		Bundle:  true,
 	}
 	certificates, err := client.Certificate.Obtain(request)
@@ -104,18 +123,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Each certificate comes back with the cert bytes, the bytes of the client's
-	// private key, and a certificate URL. SAVE THESE TO DISK.
-	err = ioutil.WriteFile("cert.pem", certificates.Certificate, 0700)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = ioutil.WriteFile("key.pem", certificates.PrivateKey, 0700)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("success")
+	uploadToS3(certificates.Certificate, fmt.Sprintf("%v.crt", domain))
+	uploadToS3(certificates.PrivateKey, fmt.Sprintf("%v.key", domain))
 
-	// ... all done.
+	// TODO maybe log the modulus or something to identify the new cert
+	log.Print("Success")
 }
-
