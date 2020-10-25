@@ -87,7 +87,7 @@ func LambdaHandler() {
 	// CADirURL is which CA to try the ACME protocol to
 	// Values from: https://github.com/go-acme/lego/blob/master/lego/client_config.go
 	// Let's Encrypt Staging: "https://acme-staging-v02.api.letsencrypt.org/directory"
-	// Let's Encrypt Prod: "https://acme-staging-v02.api.letsencrypt.org/directory"
+	// Let's Encrypt Prod: "https://acme-v02.api.letsencrypt.org/directory"
 	caDirURL := os.Getenv("CA_DIR_URL")
 	if caDirURL == "" {
 		caDirURL = "https://acme-staging-v02.api.letsencrypt.org/directory"
