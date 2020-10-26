@@ -101,8 +101,9 @@ resource "aws_lambda_function" "letsencryptlambda" {
   environment {
     variables = {
       BUCKET_NAME = var.bucket_name
-      DOMAIN      = var.domain
       CA_DIR_URL  = var.ca_dir_url
+      DOMAIN      = var.domain
+      EMAIL       = var.email
     }
   }
 

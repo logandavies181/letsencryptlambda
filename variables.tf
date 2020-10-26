@@ -2,11 +2,15 @@ variable "bucket_name" {
   type = string
 }
 
+variable "ca_dir_url" {
+  type = string
+  default = ""
+}
+
 variable "domain" {
   type = string
 }
 
-variable "ca_dir_url" {
+variable "email" {
   type = string
-  default = "https://acme-staging-v02.api.letsencrypt.org/directory"
 }

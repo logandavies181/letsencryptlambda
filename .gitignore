@@ -6,3 +6,4 @@ main
 *.pem
 *.crt
 *.key
+cmd
