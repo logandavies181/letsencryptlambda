@@ -112,13 +112,11 @@ func GetCert() {
 			break
 		}
 
-		b := bytes.NewBuffer(make([]byte, len(pemData.Bytes)))
-		err = pem.Encode(b, pemData)
+		b := pem.EncodeToMemory(pemData)
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		pemCerts = append(pemCerts, b.Bytes())
+		pemCerts = append(pemCerts, b)
 	}
 
 	if certificates.IssuerCertificate != nil {
@@ -167,9 +165,7 @@ func importACMCert(certs [][]byte, privateKey []byte) {
 
 	// FIXME: update this to handle longer cert chain
 	cert := certs[0]
-	fmt.Println(string(cert))
 	chain := certs[1]
-	fmt.Println(string(chain))
 	acmCertARN := os.Getenv("ACM_CERT_ARN")
 	_, err = acmSession.ImportCertificate(&acm.ImportCertificateInput{
 		Certificate:      cert,
